@@ -230,9 +230,18 @@ export default class ApiAdapter {
         // serialize the data
         let data: string = "\n\n";
         const appendDataWhitelist = ["POST", "PUT", "DELETE"];
+        // only append data if the method carries any
         if (appendDataWhitelist.some(item => item === requestConfig.method)) {
-            data = `\n\n${JSON.stringify(requestConfig.data)}`;
+            // serialize or raw data
+            if (requestConfig.headers["Content-Type"] === "application/json") {
+                data = `\n\n${JSON.stringify(requestConfig.data)}`;
+            } else {
+                data = `\n\n${requestConfig.data}`;
+            }
         }
+
+        console.log(requestConfig.data);
+        console.log(requestConfig.data.length);
 
         // generate the full template
         const template: string = `${methodUrl}${headers}${data}`;
