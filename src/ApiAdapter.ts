@@ -240,9 +240,6 @@ export default class ApiAdapter {
             }
         }
 
-        console.log(requestConfig.data);
-        console.log(requestConfig.data.length);
-
         // generate the full template
         const template: string = `${methodUrl}${headers}${data}`;
 

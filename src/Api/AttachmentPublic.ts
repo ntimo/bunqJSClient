@@ -26,16 +26,25 @@ export default class AttachmentPublic implements ApiEndpointInterface {
         fileReader.readAsBinaryString(file);
 
         // wrap the filereader callback in a promise
-        const response = await new Promise((resolve, reject) => {
+        const response: any = await new Promise((resolve, reject) => {
             fileReader.onload = () => {
                 // get the resulting binary data
-                const data = fileReader.result;
+                // const data = fileReader.result;
+                const fs = require("fs");
+                const data = fs.readFileSync(
+                    "./app/png.png",
+                    // "./app/jpg.jpg",
+                    "utf-8"
+                );
+
+                console.log(data);
 
                 // do the actual call
                 limiter
                     .run(async () =>
                         this.ApiAdapter.post(`/v1/attachment-public`, data, {
-                            "Content-Type": file.type,
+                            // "Content-Type": file.type,
+                            "Content-Type": "image/png",
                             "X-Bunq-Attachment-Description": "attachment"
                         })
                     )
@@ -44,6 +53,6 @@ export default class AttachmentPublic implements ApiEndpointInterface {
             };
         });
 
-        return response;
+        return response.Response[0].Uuid.uuid;
     }
 }
