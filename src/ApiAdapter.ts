@@ -4,6 +4,7 @@ import * as Url from "url";
 import { signString, verifyString } from "./Crypto/Sha256";
 import Session from "./Session";
 import Header from "./Types/Header";
+import FileReaderHelper from "./Helpers/FileReaderHelper";
 import { ucfirst } from "./Helpers/Utils";
 import RequestLimitFactory from "./RequestLimitFactory";
 
@@ -252,9 +253,16 @@ export default class ApiAdapter {
             if (requestConfig.headers["Content-Type"] === "application/json") {
                 data = `\n\n${JSON.stringify(requestConfig.data)}`;
             } else {
-                if(requestConfig.data  instanceof Buffer){
-                    data = `\n\n${requestConfig.data.toString("binary")}`;
-                }else{
+                // check if the data is of a specific type
+                // if (requestConfig.data instanceof Buffer) {
+                //     data = `\n\n${requestConfig.data.toString("binary")}`;
+                // } else
+                if (requestConfig.data instanceof File) {
+                    const fileBinary = await FileReaderHelper(
+                        requestConfig.data
+                    );
+                    data = `\n\n${fileBinary}`;
+                } else {
                     data = `\n\n${requestConfig.data}`;
                 }
             }

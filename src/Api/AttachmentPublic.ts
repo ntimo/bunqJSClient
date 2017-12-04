@@ -1,6 +1,7 @@
 import ApiAdapter from "../ApiAdapter";
 import Session from "../Session";
 import ApiEndpointInterface from "../Interfaces/ApiEndpointInterface";
+import FileReaderHelper from "../Helpers/FileReaderHelper";
 
 export default class AttachmentPublic implements ApiEndpointInterface {
     ApiAdapter: ApiAdapter;
@@ -14,25 +15,21 @@ export default class AttachmentPublic implements ApiEndpointInterface {
         this.Session = ApiAdapter.Session;
     }
 
-    public async post(file: any, options: any = {}) {
+    public async post(file: File, options: any = {}) {
         const limiter = this.ApiAdapter.RequestLimitFactory.create(
             "/attachment-public",
             "POST"
         );
 
+        const fileContents = await FileReaderHelper(file);
+
         // do the actual call
-        const response = await limiter
-            .run(async () =>
-                this.ApiAdapter.post(
-                    `/v1/attachment-public`,
-                    file,
-                    {
-                        "Content-Type": "image/png",
-                        "X-Bunq-Attachment-Description":
-                            "Default description"
-                    }
-                )
-            );
+        const response = await limiter.run(async () =>
+            this.ApiAdapter.post(`/v1/attachment-public`, fileContents, {
+                "Content-Type": "image/png",
+                "X-Bunq-Attachment-Description": "Default description"
+            })
+        );
 
         // const fileReader = new FileReader();
         //
@@ -44,27 +41,15 @@ export default class AttachmentPublic implements ApiEndpointInterface {
         //     fileReader.onload = () => {
         //         // get the resulting binary data
         //         const data = fileReader.result;
-        //         const buffer = new Buffer(data, "binary");
-        //
-        //         const fs = require("fs");
-        //
-        //         fs.writeFileSync("./app/png-buffer.png", buffer);
-        //         fs.writeFileSync(
-        //             "./app/png-binary2.png",
-        //             buffer.toString("binary"),
-        //             "binary"
-        //         );
         //
         //         // do the actual call
         //         limiter
         //             .run(async () =>
         //                 this.ApiAdapter.post(
         //                     `/v1/attachment-public`,
-        //                     buffer.toString("base64"),
+        //                     data,
         //                     {
-        //                         "Content-Type": file.type
-        //                             ? file.type
-        //                             : "image/png",
+        //                         "Content-Type": file.type,
         //                         "X-Bunq-Attachment-Description":
         //                             "Default description"
         //                     }
