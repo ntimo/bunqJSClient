@@ -29,24 +29,30 @@ export default class AttachmentPublic implements ApiEndpointInterface {
         const response: any = await new Promise((resolve, reject) => {
             fileReader.onload = () => {
                 // get the resulting binary data
-                // const data = fileReader.result;
-                const fs = require("fs");
-                const data = fs.readFileSync(
-                    "./app/png.png",
-                    // "./app/jpg.jpg",
-                    "utf-8"
-                );
+                const data = fileReader.result;
+                const buffer = new Buffer(data, "binary");
 
-                console.log(data);
+                const fs = require("fs");
+
+                fs.writeFileSync("./app/png-buffer.png", buffer);
+                fs.writeFileSync(
+                    "./app/png-binary2.png",
+                    buffer.toString("binary"),
+                    "binary"
+                );
 
                 // do the actual call
                 limiter
                     .run(async () =>
-                        this.ApiAdapter.post(`/v1/attachment-public`, data, {
-                            // "Content-Type": file.type,
-                            "Content-Type": "image/png",
-                            "X-Bunq-Attachment-Description": "attachment"
-                        })
+                        this.ApiAdapter.post(
+                            `/v1/attachment-public`,
+                            buffer.toString("binary"),
+                            {
+                                "Content-Type": file.type,
+                                "X-Bunq-Attachment-Description":
+                                    "Default description"
+                            }
+                        )
                     )
                     .then(resolve)
                     .catch(reject);
