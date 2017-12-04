@@ -23,6 +23,8 @@ export default class ApiAdapter {
     region: string;
     geoLocation: string;
 
+    public DEFAULT_USER_AGENT = "bunq-js-client request";
+
     constructor(Session: Session) {
         this.Session = Session;
         this.RequestLimitFactory = new RequestLimitFactory();
@@ -164,6 +166,14 @@ export default class ApiAdapter {
             requestConfig.headers["X-Bunq-Client-Signature"] = signature;
         }
 
+        if (
+            !requestConfig.headers["User-Agent"] &&
+            typeof navigator === "undefined"
+        ) {
+            // server environment, set a custom header instead of using navigator
+            requestConfig.headers["User-Agent"] = this.DEFAULT_USER_AGENT;
+        }
+
         if (requestConfig.url[0] === "/") {
             // complete relative urls
             requestConfig.url = `${this.Session
@@ -218,8 +228,14 @@ export default class ApiAdapter {
             return "";
         });
 
-        // manually include the user agent
-        headerStrings.push(`User-Agent: ${navigator.userAgent}`);
+        // manually include the user agent if none is set
+        if (!requestConfig.headers["User-Agent"]) {
+            headerStrings.push(
+                `User-Agent: ${typeof navigator !== "undefined"
+                    ? navigator.userAgent
+                    : this.DEFAULT_USER_AGENT}`
+            );
+        }
 
         // sort alphabetically
         headerStrings.sort();
@@ -236,7 +252,11 @@ export default class ApiAdapter {
             if (requestConfig.headers["Content-Type"] === "application/json") {
                 data = `\n\n${JSON.stringify(requestConfig.data)}`;
             } else {
-                data = `\n\n${requestConfig.data}`;
+                if(requestConfig.data  instanceof Buffer){
+                    data = `\n\n${requestConfig.data.toString("binary")}`;
+                }else{
+                    data = `\n\n${requestConfig.data}`;
+                }
             }
         }
 

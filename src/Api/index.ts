@@ -7,6 +7,7 @@ import DraftPayment from "./DraftPayment";
 import Installation from "./Installation";
 import MasterCardAction from "./MasterCardAction";
 import MonetaryAccount from "./MonetaryAccount";
+import MonetaryAccountBank from "./MonetaryAccountBank";
 import Payment from "./Payment";
 import RequestInquiry from "./RequestInquiry";
 import RequestResponse from "./RequestResponse";
@@ -22,6 +23,7 @@ export default (ApiAdapter: ApiAdapter) => {
         installation: new Installation(ApiAdapter),
         masterCardAction: new MasterCardAction(ApiAdapter),
         monetaryAccount: new MonetaryAccount(ApiAdapter),
+        monetaryAccountBank: new MonetaryAccountBank(ApiAdapter),
         payment: new Payment(ApiAdapter),
         requestInquiry: new RequestInquiry(ApiAdapter),
         requestResponse: new RequestResponse(ApiAdapter),
