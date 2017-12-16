@@ -2,12 +2,15 @@ const store = require("store");
 
 import ApiAdapter from "./ApiAdapter";
 import Session from "./Session";
+import Logger from "./Helpers/Logger";
 import StorageInteface from "./Interfaces/StorageInterface";
+import LoggerInterface from "./Interfaces/LoggerInterface";
 import { publicKeyFromPem } from "./Crypto/Rsa";
 import ApiEndpoints from "./Api/index";
 
 export default class BunqJSClient {
     public storageInterface: StorageInteface;
+    public logger: LoggerInterface;
     public apiKey: string = null;
     public allowedIps: string[] = [];
 
@@ -18,15 +21,20 @@ export default class BunqJSClient {
 
     /**
      * @param {StorageInterface} storageInterface
+     * @param {LoggerInterface} loggerInterface
      */
-    constructor(storageInterface: StorageInteface = store) {
+    constructor(
+        storageInterface: StorageInteface = store,
+        loggerInterface: LoggerInterface = Logger
+    ) {
         this.storageInterface = storageInterface;
+        this.logger = loggerInterface;
 
         // create a new session instance
-        this.Session = new Session(this.storageInterface);
+        this.Session = new Session(this.storageInterface, this.logger);
 
         // setup the api adapter using our session context
-        this.ApiAdapter = new ApiAdapter(this.Session);
+        this.ApiAdapter = new ApiAdapter(this.Session, this.logger);
 
         // register our api endpoints
         this.api = ApiEndpoints(this.ApiAdapter);
@@ -42,6 +50,8 @@ export default class BunqJSClient {
         environment: string = "SANDBOX",
         encryptionKey: string | boolean = false
     ) {
+        this.logger.debug("BunqJSClient run");
+
         this.apiKey = apiKey;
         this.allowedIps = allowedIps;
 
@@ -184,12 +194,13 @@ export default class BunqJSClient {
     }
 
     /**
-     * Returns the registered users for the session
+     * Returns the registered user for the session of a specific type
      * @returns {any}
      */
     public async getUser(userType, updated: boolean = false) {
         if (updated) {
-            // TODO do api call to get updated version for our session
+            // update the user info and update session data
+            this.Session.userInfo = await this.api.user.list();
         }
         // return the user if we have one
         return this.Session.userInfo[userType];
@@ -201,8 +212,10 @@ export default class BunqJSClient {
      */
     public async getUsers(updated: boolean = false) {
         if (updated) {
-            // TODO do api call to get updated version for our session
+            // update the user info and update session data
+            this.Session.userInfo = await this.api.user.list();
         }
+        // return the users
         return this.Session.userInfo;
     }
 }

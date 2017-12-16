@@ -7,6 +7,7 @@ import Header from "./Types/Header";
 import FileReaderHelper from "./Helpers/FileReaderHelper";
 import { ucfirst } from "./Helpers/Utils";
 import RequestLimitFactory from "./RequestLimitFactory";
+import LoggerInterface from "./Interfaces/LoggerInterface";
 
 // these headers are set by default
 export const DEFAULT_HEADERS: Header = {
@@ -18,16 +19,18 @@ export const DEFAULT_HEADERS: Header = {
 };
 
 export default class ApiAdapter {
-    Session: Session;
-    RequestLimitFactory: RequestLimitFactory;
-    language: string;
-    region: string;
-    geoLocation: string;
+    public logger: LoggerInterface;
+    public Session: Session;
+    public RequestLimitFactory: RequestLimitFactory;
+    public language: string;
+    public region: string;
+    public geoLocation: string;
 
     public DEFAULT_USER_AGENT = "bunq-js-client request";
-
-    constructor(Session: Session) {
+    
+    constructor(Session: Session, loggerInterface: LoggerInterface) {
         this.Session = Session;
+        this.logger = loggerInterface;
         this.RequestLimitFactory = new RequestLimitFactory();
 
         this.language = "en_US";

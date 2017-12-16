@@ -2,6 +2,7 @@ import ApiAdapter from "../ApiAdapter";
 import AttachementContent from "./AttachementContent";
 import AttachmentPublic from "./AttachmentPublic";
 import BunqMeTabs from "./BunqMeTabs";
+import Card from "./Card";
 import DeviceRegistration from "./DeviceRegistration";
 import DraftPayment from "./DraftPayment";
 import Installation from "./Installation";
@@ -12,12 +13,14 @@ import Payment from "./Payment";
 import RequestInquiry from "./RequestInquiry";
 import RequestResponse from "./RequestResponse";
 import SessionServer from "./SessionServer";
+import User from "./User";
 
 export default (ApiAdapter: ApiAdapter) => {
     return {
         attachmentContent: new AttachementContent(ApiAdapter),
         attachmentPublic: new AttachmentPublic(ApiAdapter),
         bunqMeTabs: new BunqMeTabs(ApiAdapter),
+        card: new Card(ApiAdapter),
         deviceRegistration: new DeviceRegistration(ApiAdapter),
         draftPayment: new DraftPayment(ApiAdapter),
         installation: new Installation(ApiAdapter),
@@ -28,5 +31,6 @@ export default (ApiAdapter: ApiAdapter) => {
         requestInquiry: new RequestInquiry(ApiAdapter),
         requestResponse: new RequestResponse(ApiAdapter),
         sessionServer: new SessionServer(ApiAdapter),
+        user: new User(ApiAdapter),
     }
 }
