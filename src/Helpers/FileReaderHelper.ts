@@ -9,7 +9,7 @@ export default async (file: File) => {
         // resolve the output onload
         fileReader.onload = () => {
             const arrayBuffer: any = new Uint8Array(fileReader.result);
-            const binaryString = String.fromCharCode(null, arrayBuffer);
+            const binaryString = String.fromCharCode.apply(null, arrayBuffer);
 
             resolve(binaryString);
         };
