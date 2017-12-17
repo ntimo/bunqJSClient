@@ -26,7 +26,7 @@ export default class AttachmentPublic implements ApiEndpointInterface {
         // do the actual call
         const response = await limiter.run(async () =>
             this.ApiAdapter.post(`/v1/attachment-public`, fileContents, {
-                "Content-Type": "image/png",
+                "Content-Type": file.type,
                 "X-Bunq-Attachment-Description": "Default description"
             })
         );
