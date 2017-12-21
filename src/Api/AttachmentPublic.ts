@@ -31,35 +31,6 @@ export default class AttachmentPublic implements ApiEndpointInterface {
             })
         );
 
-        // const fileReader = new FileReader();
-        //
-        // // start loading the file as binary
-        // fileReader.readAsBinaryString(file);
-        //
-        // // wrap the filereader callback in a promise
-        // const response: any = await new Promise((resolve, reject) => {
-        //     fileReader.onload = () => {
-        //         // get the resulting binary data
-        //         const data = fileReader.result;
-        //
-        //         // do the actual call
-        //         limiter
-        //             .run(async () =>
-        //                 this.ApiAdapter.post(
-        //                     `/v1/attachment-public`,
-        //                     data,
-        //                     {
-        //                         "Content-Type": file.type,
-        //                         "X-Bunq-Attachment-Description":
-        //                             "Default description"
-        //                     }
-        //                 )
-        //             )
-        //             .then(resolve)
-        //             .catch(reject);
-        //     };
-        // });
-
         return response.Response[0].Uuid.uuid;
     }
 }
