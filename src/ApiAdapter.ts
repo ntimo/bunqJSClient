@@ -149,7 +149,9 @@ export default class ApiAdapter {
         method = "GET",
         data: any = {},
         headers: any = {},
-        options: any = {}
+        options: any = {
+            file: false
+        }
     ) {
         // use session token or fallback to install taken if we have one
         if (this.Session.sessionToken !== null) {
@@ -191,6 +193,11 @@ export default class ApiAdapter {
             // complete relative urls
             requestConfig.url = `${this.Session
                 .environmentUrl}${requestConfig.url}`;
+        }
+
+        // replace data with file object
+        if (options.file) {
+            requestConfig.data = options.file;
         }
 
         // Send the request to Bunq
