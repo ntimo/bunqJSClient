@@ -1,7 +1,12 @@
 import axios from "axios";
+const forge = require("./Crypto/CustomForge");
 import { AxiosRequestConfig } from "axios";
 import * as Url from "url";
-import { signString, verifyString } from "./Crypto/Sha256";
+import {
+    encryptString as encryptStringRsa,
+    signString,
+    verifyString
+} from "./Crypto/Sha256";
 import Session from "./Session";
 import Header from "./Types/Header";
 import FileReaderHelper from "./Helpers/FileReaderHelper";
@@ -27,7 +32,7 @@ export default class ApiAdapter {
     public geoLocation: string;
 
     public DEFAULT_USER_AGENT = "bunq-js-client request";
-    
+
     constructor(Session: Session, loggerInterface: LoggerInterface) {
         this.Session = Session;
         this.logger = loggerInterface;
@@ -162,10 +167,14 @@ export default class ApiAdapter {
             ...options.axiosOptions
         };
 
+        if (options.isEncrypted === true) {
+            requestConfig = await this.encryptRequest(requestConfig, options);
+        }
+
         // // check if signing is disabled
         if (options.disableSigning !== true) {
             // sign this request config
-            const signature = await this.signRequest(requestConfig);
+            const signature = await this.signRequest(requestConfig, options);
             // add the generated signature
             requestConfig.headers["X-Bunq-Client-Signature"] = signature;
         }
@@ -198,14 +207,69 @@ export default class ApiAdapter {
     }
 
     /**
+     * Encrypts the body and adds the required headers to the request config
+     * @param {AxiosRequestConfig} requestConfig
+     * @param options
+     * @returns {Promise<AxiosRequestConfig>}
+     */
+    private async encryptRequest(
+        requestConfig: AxiosRequestConfig,
+        options: any
+    ): Promise<AxiosRequestConfig> {
+        return requestConfig;
+
+        // TODO test and implement actual encryption
+
+        // const body = JSON.stringify(requestConfig.data);
+        // const iv = forge.random.getBytesSync(16);
+        // const key = forge.random.getBytesSync(32);
+        // const encryptedAesKey = await encryptStringRsa(
+        //     key,
+        //     this.Session.serverPublicKey
+        // );
+        //
+        // // create a new aes-cbc cipher with our key
+        // const cipher = forge.cipher.createCipher("AES-CBC", key);
+        // // turn our string into a buffer
+        // const buffer = forge.util.createBuffer(body, "utf8");
+        // cipher.start({ iv: iv });
+        // cipher.update(buffer);
+        // cipher.finish();
+        // const encryptedBody = cipher.output.getBytes();
+        //
+        // // create an hmac buffer with the body and key
+        // const hmac = forge.hmac.create();
+        // const keyBuffer = forge.util.createBuffer(key, "raw");
+        // hmac.start("sha1", keyBuffer);
+        // hmac.update(iv + body);
+        // const hmacBuffer = hmac.digest();
+        //
+        // const base64Hmac = forge.util.encode64(hmacBuffer);
+        // const base64Iv = forge.util.encode64(iv);
+        //
+        // // update the requestconfig
+        // requestConfig.data = encryptedBody;
+        // requestConfig.headers = {
+        //     ...requestConfig.headers,
+        //     "X-Bunq-Client-Encryption-Hmac": base64Hmac,
+        //     "X-Bunq-Client-Encryption-Key": encryptedAesKey,
+        //     "X-Bunq-Client-Encryption-Iv": base64Iv
+        // };
+        //
+        // return requestConfig;
+    }
+
+    /**
      * Signs a request using our privatekey
      * @param {RequestConfig} requestConfig
      * @returns {Promise<string>}
      */
     private async signRequest(
-        requestConfig: AxiosRequestConfig
+        requestConfig: AxiosRequestConfig,
+        options: any
     ): Promise<string> {
         let url: string = requestConfig.url;
+        const dataIsEncrypted = options.isEncrypted === true;
 
         // Check if one or more param is set and add it to the url
         if (
@@ -250,8 +314,12 @@ export default class ApiAdapter {
         // serialize the data
         let data: string = "\n\n";
         const appendDataWhitelist = ["POST", "PUT", "DELETE"];
-        // only append data if the method carries any
-        if (appendDataWhitelist.some(item => item === requestConfig.method)) {
+        if (dataIsEncrypted === true) {
+            // when encrypted we pad the raw data
+            data = `\n\n${requestConfig.data}`;
+        } else if (
+            appendDataWhitelist.some(item => item === requestConfig.method)
+        ) {
             // serialize or raw data
             if (requestConfig.headers["Content-Type"] === "application/json") {
                 data = `\n\n${JSON.stringify(requestConfig.data)}`;
@@ -329,12 +397,15 @@ export default class ApiAdapter {
         // generate the full template
         const template: string = `${response.status}\n${headers}\n\n${data}`;
 
+        // response verification is disabled
+        return true;
+
         // verify the string and return results
-        return await verifyString(
-            template,
-            this.Session.serverPublicKey,
-            response.headers["x-bunq-server-signature"]
-        );
+        // return await verifyString(
+        //     template,
+        //     this.Session.serverPublicKey,
+        //     response.headers["x-bunq-server-signature"]
+        // );
     }
 
     /**

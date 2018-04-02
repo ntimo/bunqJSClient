@@ -45,6 +45,7 @@ export default class Session {
 
     // session info
     public sessionToken: string = null;
+    public sessionTokenId: string | number = null;
     public sessionId: number = null;
     public sessionExpiryTime?: Date = null;
     public userInfo: any = {};
@@ -94,14 +95,20 @@ export default class Session {
             // setup the required rsa keypair
             await this.setupKeypair();
         }
+        return true;
     }
 
     /**
      * Setup the keypair and generate a new one when required
-     * @param forceNewKeypair
-     * @returns {Promise.<boolean>}
+     * @param {boolean} forceNewKeypair
+     * @param {boolean} ignoreCI - if true the hardcoded certs won't be used even if process.env.CI is set
+     * @returns {Promise<boolean>}
      */
-    public async setupKeypair(forceNewKeypair: boolean = false) {
+    public async setupKeypair(
+        forceNewKeypair: boolean = false,
+        bitSize: number = 2048,
+        ignoreCI: boolean = false
+    ) {
         if (
             forceNewKeypair === false &&
             this.publicKey !== null &&
@@ -110,14 +117,29 @@ export default class Session {
             return true;
         }
 
-        // generate a new keypair and format as pem
-        const keyPair = await createKeyPair();
-        const { publicKey, privateKey } = await keyPairToPem(keyPair);
+        // check if we are in a CI environment
+        if (
+            typeof process !== "undefined" &&
+            process.env.ENV_CI === "true" &&
+            ignoreCI === false
+        ) {
+            // use the stored CI variables instead of creating a new on
+            this.publicKeyPem = process.env.CI_PUBLIC_KEY_PEM;
+            this.privateKeyPem = process.env.CI_PRIVATE_KEY_PEM;
 
-        this.publicKey = keyPair.publicKey;
-        this.privateKey = keyPair.privateKey;
-        this.publicKeyPem = publicKey;
-        this.privateKeyPem = privateKey;
+            this.publicKey = await publicKeyFromPem(this.publicKeyPem);
+            this.privateKey = await privateKeyFromPem(this.privateKeyPem);
+        } else {
+            // generate a new keypair and format as pem
+            const keyPair = await createKeyPair(bitSize);
+            const { publicKey, privateKey } = await keyPairToPem(keyPair);
+
+            this.publicKey = keyPair.publicKey;
+            this.privateKey = keyPair.privateKey;
+            this.publicKeyPem = publicKey;
+            this.privateKeyPem = privateKey;
+        }
+
         return true;
     }
 
@@ -126,6 +148,7 @@ export default class Session {
      * @returns {Promise.<boolean>}
      */
     public async loadSession() {
+        this.logger.debug(" === Loading session data === ");
         // try to load the session interface
         const encryptedSession = await this.asyncStorageGet(
             this.storageKeyLocation
@@ -133,6 +156,7 @@ export default class Session {
 
         // no session found stored
         if (encryptedSession === undefined || encryptedSession === null) {
+            this.logger.debug("No stored session found");
             return false;
         }
 
@@ -141,8 +165,8 @@ export default class Session {
             // decrypt the stored sesion
             session = await this.decryptSession(encryptedSession);
         } catch (error) {
-            this.logger.error("Failed to decrypt session");
-            this.logger.error(error);
+            this.logger.debug("Failed to decrypt session");
+            this.logger.debug(error);
             // failed to decrypt the session, return false
             return false;
         }
@@ -154,7 +178,7 @@ export default class Session {
             session.apiKey !== this.apiKey
         ) {
             this.logger.debug(
-                "Api key changed or is different 'api key could be empty'"
+                "Api key changed or is different (api key could be empty)"
             );
             return false;
         }
@@ -190,6 +214,37 @@ export default class Session {
         this.sessionExpiryTime = new Date(session.sessionExpiryTime);
         this.deviceId = session.deviceId;
         this.userInfo = session.userInfo;
+
+        this.logger.debug(`sessionId: ${session.sessionId}`);
+        this.logger.debug(`installCreated: ${session.installCreated}`);
+        this.logger.debug(`installUpdated: ${session.installUpdated}`);
+        this.logger.debug(`sessionExpiryTime: ${session.sessionExpiryTime}`);
+        this.logger.debug(`deviceId: ${session.deviceId}`);
+
+        // if we have a stored installation but no session we reset to prevent
+        // creating two sessions for a single installation
+        if (this.verifyInstallation() && !this.verifySessionInstallation()) {
+            const apiKey = this.apiKey + ""; // copy key while preventing reference issues
+
+            // reset session and set the apiKey again to the original value
+            await this.destroySession();
+            this.apiKey = apiKey;
+
+            return false;
+        }
+
+        try {
+            this.logger.debug(
+                `sessionToken: ${session.sessionToken === null
+                    ? null
+                    : session.sessionToken.substring(0, 5)}`
+            );
+            this.logger.debug(
+                `installToken: ${session.installToken === null
+                    ? null
+                    : session.installToken.substring(0, 5)}`
+            );
+        } catch (error) {}
 
         return true;
     }
@@ -239,6 +294,7 @@ export default class Session {
         this.userInfo = {};
         this.sessionId = null;
         this.sessionToken = null;
+        this.sessionTokenId = null;
         this.sessionExpiryTime = null;
 
         return await this.asyncStorageRemove(this.storageKeyLocation);
@@ -251,6 +307,12 @@ export default class Session {
      */
     private decryptSession = async encryptedSession => {
         const IV = await this.asyncStorageGet(this.storageIvLocation);
+
+        if (this.encryptionKey === false) {
+            throw new Error(
+                "No encryption key is set, failed to decrypt session"
+            );
+        }
 
         // attempt to decrypt the string
         const decryptedSession = await decryptString(
@@ -292,12 +354,85 @@ export default class Session {
     };
 
     /**
+     * @param data
+     * @param {string} data_location
+     * @param {string} iv_location
+     * @returns {Promise<boolean>}
+     */
+    public storeEncryptedData = async (data: any, location: string) => {
+        // attempt to decrypt the string
+        const encryptedData = await encryptString(
+            JSON.stringify(data),
+            this.encryptionKey
+        );
+
+        // store the new IV and encrypted data
+        const ivStorage = this.asyncStorageSet(
+            `${location}_IV`,
+            encryptedData.iv
+        );
+        const dataStorage = this.asyncStorageSet(
+            location,
+            encryptedData.encryptedString
+        );
+
+        await ivStorage;
+        await dataStorage;
+
+        return true;
+    };
+
+    /**
+     * @param {string} data_location
+     * @param {string} iv_location
+     * @returns {Promise<any>}
+     */
+    public loadEncryptedData = async (
+        data_location: string,
+        iv_location: string = null
+    ) => {
+        // set default value for IV location in case none is given
+        iv_location =
+            iv_location === null ? `${data_location}_IV` : iv_location;
+
+        // load the data from storage
+        const storedData = await this.asyncStorageGet(data_location);
+        const storedIv = await this.asyncStorageGet(iv_location);
+
+        // check if both values are found
+        if (
+            storedData === undefined ||
+            storedData === null ||
+            storedIv === undefined ||
+            storedIv === null
+        ) {
+            return false;
+        }
+
+        if (this.encryptionKey === false) {
+            throw new Error("No encryption key is set, failed to decrypt data");
+        }
+
+        // attempt to decrypt the data
+        const decryptedSession = await decryptString(
+            storedData,
+            this.encryptionKey,
+            storedIv
+        );
+
+        return JSON.parse(decryptedSession);
+    };
+
+    /**
      * Wrapper around the storage interface for remove calls
      * @param key
      * @param {boolean} silent
      * @returns {Promise<any>}
      */
-    private asyncStorageRemove = async (key, silent: boolean = false) => {
+    public asyncStorageRemove = async (
+        key: string,
+        silent: boolean = false
+    ) => {
         try {
             return await this.storageInterface.remove(key);
         } catch (error) {
@@ -314,7 +449,7 @@ export default class Session {
      * @param {boolean} silent
      * @returns {Promise<any>}
      */
-    private asyncStorageGet = async (key, silent: boolean = false) => {
+    public asyncStorageGet = async (key: string, silent: boolean = false) => {
         try {
             return await this.storageInterface.get(key);
         } catch (error) {
@@ -332,7 +467,11 @@ export default class Session {
      * @param {boolean} silent
      * @returns {Promise<any>}
      */
-    private asyncStorageSet = async (key, value, silent: boolean = false) => {
+    public asyncStorageSet = async (
+        key: string,
+        value: any,
+        silent: boolean = false
+    ) => {
         try {
             return await this.storageInterface.set(key, value);
         } catch (error) {
@@ -348,8 +487,18 @@ export default class Session {
      * @returns {Promise<boolean>}
      */
     public verifyInstallation(): boolean {
+        this.logger.debug(" === Testing installation === ");
         const installationValid =
             this.serverPublicKey !== null && this.installToken !== null;
+
+        this.logger.debug("Installation valid: " + installationValid);
+        this.logger.debug("this.serverPublicKey = " + this.serverPublicKey);
+        this.logger.debug(
+            `this.installToken = ${this.installToken === null
+                ? null
+                : this.installToken.substring(0, 5)}`
+        );
+
         return installationValid;
     }
 
@@ -358,7 +507,10 @@ export default class Session {
      * @returns {Promise<boolean>}
      */
     public verifyDeviceInstallation() {
+        this.logger.debug(" === Testing device installation === ");
         const deviceValid = this.deviceId !== null;
+        this.logger.debug("Device valid: " + deviceValid);
+        this.logger.debug("this.deviceId: " + this.deviceId);
         return deviceValid;
     }
 
@@ -367,15 +519,33 @@ export default class Session {
      * @returns {Promise<boolean>}
      */
     public verifySessionInstallation() {
+        this.logger.debug(" === Testing session installation === ");
+        this.logger.debug(`this.sessionId = ${this.sessionId}`);
+        this.logger.debug(
+            `this.sessionToken = ${this.sessionToken === null
+                ? null
+                : this.sessionToken.substring(0, 5)}`
+        );
+
         if (this.sessionId === null) {
+            this.logger.debug("Session invalid: sessionId null");
             return false;
         }
 
         const currentTime = new Date();
         if (this.sessionExpiryTime.getTime() <= currentTime.getTime()) {
+            this.logger.debug("Session invalid: expired");
+            this.logger.debug(
+                "this.sessionExpiryTime.getTime() = " +
+                    this.sessionExpiryTime.getTime()
+            );
+            this.logger.debug(
+                "currentTime.getTime() = " + currentTime.getTime()
+            );
             return false;
         }
 
+        this.logger.debug("Session valid: true");
         return true;
     }
 

@@ -2,6 +2,7 @@ import ApiAdapter from "../ApiAdapter";
 import Session from "../Session";
 import ApiEndpointInterface from "../Interfaces/ApiEndpointInterface";
 import PaginationOptions from "../Types/PaginationOptions";
+import Amount from "../Types/Amount";
 
 export default class MonetaryAccountBank implements ApiEndpointInterface {
     ApiAdapter: ApiAdapter;
@@ -16,13 +17,14 @@ export default class MonetaryAccountBank implements ApiEndpointInterface {
     }
 
     /**
-     *
+     * @param {number} userId
+     * @param {number} monetaryAccountBankId
      * @param options
      * @returns {Promise<any>}
      */
     public async get(
         userId: number,
-        monetaryAccountId: number,
+        monetaryAccountBankId: number,
         options: any = {}
     ) {
         const limiter = this.ApiAdapter.RequestLimitFactory.create(
@@ -32,57 +34,104 @@ export default class MonetaryAccountBank implements ApiEndpointInterface {
 
         const response = await limiter.run(async () =>
             this.ApiAdapter.get(
-                `/v1/user/${userId}/monetary-account-bank/${monetaryAccountId}`
+                `/v1/user/${userId}/monetary-account-bank/${monetaryAccountBankId}`
             )
         );
 
-        // return raw respone image
-        return response.Response;
+        return response.Response[0];
     }
 
     /**
      * @param {number} userId
-     * @param {MonetaryAccountListOptions} options
      * @returns {Promise<void>}
      */
-    public async list(
-        userId: number,
-        options: PaginationOptions = {
-            count: 25,
-            newer_id: false,
-            older_id: false
-        }
-    ) {
-        const params: any = {};
-
-        if (options.count !== undefined) {
-            params.count = options.count;
-        }
-        if (options.newer_id !== false && options.newer_id !== undefined) {
-            params.newer_id = options.newer_id;
-        }
-        if (options.older_id !== false && options.older_id !== undefined) {
-            params.older_id = options.older_id;
-        }
-
+    public async list(userId: number) {
         const limiter = this.ApiAdapter.RequestLimitFactory.create(
             "/monetary-account-bank",
             "LIST"
         );
 
         const response = await limiter.run(async () =>
-            this.ApiAdapter.get(
-                `/v1/user/${userId}/monetary-account-bank`,
-                {},
+            this.ApiAdapter.get(`/v1/user/${userId}/monetary-account-bank`)
+        );
+
+        return response.Response;
+    }
+
+    /**
+     * @param {number} userId
+     * @param {string} currency
+     * @param {string} description
+     * @param {Amount} dailyLimit
+     * @param {string} color
+     * @param options
+     * @returns {Promise<void>}
+     */
+    public async post(
+        userId: number,
+        currency: string,
+        description: string,
+        dailyLimit: Amount,
+        color: string,
+        options: any = {}
+    ) {
+        const limiter = this.ApiAdapter.RequestLimitFactory.create(
+            "/monetary-account-bank",
+            "POST"
+        );
+
+        const response = await limiter.run(async () =>
+            this.ApiAdapter.post(`/v1/user/${userId}/monetary-account-bank`, {
+                currency: currency,
+                description: description,
+                daily_limit: {
+                    value: dailyLimit,
+                    currency: currency
+                },
+                setting: {
+                    color: color,
+                    default_avatar_status: "AVATAR_DEFAULT"
+                }
+            })
+        );
+
+        return response.Response;
+    }
+
+    /**
+     * @param {number} userId
+     * @param {number} accountId
+     * @param {"CANCELLED"} status
+     * @param {"REDEMPTION_VOLUNTARY"} sub_status
+     * @param {string} reason
+     * @param options
+     * @returns {Promise<any>}
+     */
+    public async putCancel(
+        userId: number,
+        accountId: number,
+        status: "CANCELLED",
+        sub_status: "REDEMPTION_VOLUNTARY",
+        reason: string,
+        options: any = {}
+    ) {
+        const limiter = this.ApiAdapter.RequestLimitFactory.create(
+            "/monetary-account-bank",
+            "PUT"
+        );
+
+        const response = await limiter.run(async () =>
+            this.ApiAdapter.put(
+                `/v1/user/${userId}/monetary-account-bank/${accountId}`,
                 {
-                    axiosOptions: {
-                        params: params
-                    }
+                    status: status,
+                    sub_status: sub_status,
+                    reason: "OTHER",
+                    reason_description: reason
                 }
             )
         );
 
-        // return raw respone image
         return response.Response;
     }
 }
