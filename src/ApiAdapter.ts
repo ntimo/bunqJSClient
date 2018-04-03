@@ -9,7 +9,6 @@ import {
 } from "./Crypto/Sha256";
 import Session from "./Session";
 import Header from "./Types/Header";
-import FileReaderHelper from "./Helpers/FileReaderHelper";
 import { ucfirst } from "./Helpers/Utils";
 import RequestLimitFactory from "./RequestLimitFactory";
 import LoggerInterface from "./Interfaces/LoggerInterface";
@@ -277,6 +276,7 @@ export default class ApiAdapter {
     ): Promise<string> {
         let url: string = requestConfig.url;
         const dataIsEncrypted = options.isEncrypted === true;
+        const requestHasFile = !!options.file;
 
         // Check if one or more param is set and add it to the url
         if (
@@ -320,9 +320,12 @@ export default class ApiAdapter {
 
         // serialize the data
         let data: string = "\n\n";
+
+        // these methods require data to be appended
         const appendDataWhitelist = ["POST", "PUT", "DELETE"];
+
+        // when encrypted we just append the raw data
         if (dataIsEncrypted === true) {
-            // when encrypted we pad the raw data
             data = `\n\n${requestConfig.data}`;
         } else if (
             appendDataWhitelist.some(item => item === requestConfig.method)
@@ -331,26 +334,45 @@ export default class ApiAdapter {
             if (requestConfig.headers["Content-Type"] === "application/json") {
                 data = `\n\n${JSON.stringify(requestConfig.data)}`;
             } else {
-                // check if the data is of a specific type
-                // if (requestConfig.data instanceof Buffer) {
-                //     data = `\n\n${requestConfig.data.toString("binary")}`;
-                // } else
-                if (requestConfig.data instanceof File) {
-                    const fileBinary = await FileReaderHelper(
-                        requestConfig.data
-                    );
-                    data = `\n\n${fileBinary}`;
-                } else {
-                    data = `\n\n${requestConfig.data}`;
-                }
+                // we append the binary data manually
             }
         }
 
         // generate the full template
         const template: string = `${methodUrl}${headers}${data}`;
 
-        // sign the template with our private key
-        return await signString(template, this.Session.privateKey);
+        if (requestHasFile) {
+            // construct the final data we want to sign
+            const signData = await this.appendFileToString(
+                template,
+                options.file
+            );
+
+            // sign the template + file with our private key
+            return await signString(signData, this.Session.privateKey, "raw");
+        } else {
+            // sign the template with our private key
+            return await signString(template, this.Session.privateKey, "utf8");
+        }
+    }
+
+    /**
+     * Appends a file arraybuffer to a string
+     * @param {string} dataString
+     * @param {ArrayBuffer} dataFile
+     * @returns {Promise<any>}
+     */
+    private async appendFileToString(
+        dataString: string,
+        dataFile: ArrayBuffer
+    ): Promise<Buffer> {
+        const dataBuffer1: Buffer = Buffer.from(dataString, "ascii");
+        const dataBuffer2: Buffer = Buffer.from(dataFile);
+
+        console.log(dataBuffer1);
+        console.log(dataBuffer2);
+
+        return Buffer.concat([dataBuffer1, dataBuffer2]);
     }
 
     /**
