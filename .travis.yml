@@ -1,7 +1,6 @@
 language: node_js
 
 node_js:
-  - "8"
   - "9"
 
 sudo: false
@@ -12,5 +11,6 @@ cache:
     - "node_modules"
 
 script:
+  - yarn global add codecov
   - yarn run test
-  - cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js
+  - bash <(curl -s https://codecov.io/bash)

@@ -12,9 +12,8 @@ const fakeEncryptionKey = randomHex(32);
 const fakeEncryptionKey2 = randomHex(32);
 
 describe("Session", () => {
-    beforeAll(async done => {
-        await Prepare();
-        done();
+    beforeEach(function() {
+        Prepare();
     });
 
     beforeEach(function() {
@@ -270,6 +269,75 @@ describe("Session", () => {
             // session should be invalidated because environment is different
             const loadSession = await session.loadSession();
             expect(loadSession === false);
+        });
+    });
+
+    describe("#loadEncryptedData ()", () => {
+        it("should return false if no data is stored", async () => {
+            const session = new Session(
+                new CustomDb("SessionLoadEncryptedData1"),
+                Logger
+            );
+
+            // setup a session with default options
+            const setupResult = await session.setup(
+                fakeApiKey,
+                [],
+                "SANDBOX",
+                fakeEncryptionKey
+            );
+            expect(setupResult);
+
+            const loadSession = await session.loadEncryptedData("LOCATION_KEY");
+            expect(loadSession).toBeFalsy();
+        });
+
+        it("should return false if no data is stored with defaults", async () => {
+            const session = new Session(
+                new CustomDb("SessionLoadEncryptedData1"),
+                Logger
+            );
+
+            // setup a session with default options
+            const setupResult = await session.setup(
+                fakeApiKey,
+                [],
+                "SANDBOX",
+                fakeEncryptionKey
+            );
+            expect(setupResult);
+
+            const loadSession = await session.loadEncryptedData(
+                "LOCATION_KEY",
+                "LOCATION_KEY_IV"
+            );
+            expect(loadSession).toBeFalsy();
+        });
+
+        it("should load the data if it exists", async () => {
+            const session = new Session(
+                new CustomDb("SessionLoadEncryptedData2 "),
+                Logger
+            );
+
+            // setup a session with default options
+            const setupResult = await session.setup(
+                fakeApiKey,
+                [],
+                "SANDBOX",
+                fakeEncryptionKey
+            );
+            expect(setupResult);
+
+            // store the session in the storage interface
+            const storeSession = await session.storeEncryptedData(
+                "data",
+                "LOCATION_KEY"
+            );
+            expect(storeSession).toBeTruthy();
+
+            const loadSession = await session.loadEncryptedData("LOCATION_KEY");
+            expect(loadSession).toBe("data");
         });
     });
 

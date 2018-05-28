@@ -3,6 +3,7 @@ import Session from "../Session";
 import ApiEndpointInterface from "../Interfaces/ApiEndpointInterface";
 import PaginationOptions from "../Types/PaginationOptions";
 import Amount from "../Types/Amount";
+import MonetaryAccountPutRequest from "../Types/MonetaryAccountPutRequest";
 
 export default class MonetaryAccountBank implements ApiEndpointInterface {
     ApiAdapter: ApiAdapter;
@@ -43,9 +44,17 @@ export default class MonetaryAccountBank implements ApiEndpointInterface {
 
     /**
      * @param {number} userId
+     * @param {PaginationOptions} options
      * @returns {Promise<void>}
      */
-    public async list(userId: number) {
+    public async list(
+        userId: number,
+        options: PaginationOptions = {
+            count: 25,
+            newer_id: false,
+            older_id: false
+        }
+    ) {
         const limiter = this.ApiAdapter.RequestLimitFactory.create(
             "/monetary-account-bank",
             "LIST"
@@ -93,6 +102,34 @@ export default class MonetaryAccountBank implements ApiEndpointInterface {
                     default_avatar_status: "AVATAR_DEFAULT"
                 }
             })
+        );
+
+        return response.Response;
+    }
+
+    /**
+     * @param {number} userId
+     * @param {number} accountId
+     * @param {monetaryAccountPutRequest} MonetaryAccountPutRequest
+     * @param options
+     * @returns {Promise<any>}
+     */
+    public async put(
+        userId: number,
+        accountId: number,
+        monetaryAccountPutRequest: MonetaryAccountPutRequest,
+        options: any = {}
+    ) {
+        const limiter = this.ApiAdapter.RequestLimitFactory.create(
+            "/monetary-account-bank",
+            "PUT"
+        );
+
+        const response = await limiter.run(async () =>
+            this.ApiAdapter.put(
+                `/v1/user/${userId}/monetary-account-bank/${accountId}`,
+                monetaryAccountPutRequest
+            )
         );
 
         return response.Response;

@@ -1,17 +1,14 @@
 import axios from "axios";
-const forge = require("./Crypto/CustomForge");
 import { AxiosRequestConfig } from "axios";
 import * as Url from "url";
-import {
-    encryptString as encryptStringRsa,
-    signString,
-    verifyString
-} from "./Crypto/Sha256";
+import { signString, verifyString } from "./Crypto/Sha256";
+import { ucfirst } from "./Helpers/Utils";
 import Session from "./Session";
 import Header from "./Types/Header";
-import { ucfirst } from "./Helpers/Utils";
+import ErrorCodes, { INVALID_RESPONSE_RECEIVED } from "./Helpers/ErrorCodes";
 import RequestLimitFactory from "./RequestLimitFactory";
 import LoggerInterface from "./Interfaces/LoggerInterface";
+import ApiAdapterOptions from "./Types/ApiAdapterOptions";
 
 // these headers are set by default
 export const DEFAULT_HEADERS: Header = {
@@ -47,10 +44,14 @@ export default class ApiAdapter {
     /**
      * @param {string} url
      * @param headers
-     * @param options
+     * @param {ApiAdapterOptions} options
      * @returns {Promise<void>}
      */
-    public async get(url: string, headers: any = {}, options: any = {}) {
+    public async get(
+        url: string,
+        headers: any = {},
+        options: ApiAdapterOptions = {}
+    ) {
         const response = await this.request(url, "GET", {}, headers, options);
         return response.data;
     }
@@ -58,10 +59,14 @@ export default class ApiAdapter {
     /**
      * @param {string} url
      * @param headers
-     * @param options
+     * @param {ApiAdapterOptions} options
      * @returns {Promise<void>}
      */
-    public async delete(url: string, headers: any = {}, options: any = {}) {
+    public async delete(
+        url: string,
+        headers: any = {},
+        options: ApiAdapterOptions = {}
+    ) {
         const response = await this.request(
             url,
             "DELETE",
@@ -76,14 +81,14 @@ export default class ApiAdapter {
      * @param {string} url
      * @param data
      * @param headers
-     * @param options
+     * @param {ApiAdapterOptions} options
      * @returns {Promise<void>}
      */
     public async post(
         url: string,
         data: any = {},
         headers: any = {},
-        options: any = {}
+        options: ApiAdapterOptions = {}
     ) {
         const response = await this.request(
             url,
@@ -99,14 +104,14 @@ export default class ApiAdapter {
      * @param {string} url
      * @param data
      * @param headers
-     * @param options
+     * @param {ApiAdapterOptions} options
      * @returns {Promise<void>}
      */
     public async put(
         url: string,
         data: any = {},
         headers: any = {},
-        options: any = {}
+        options: ApiAdapterOptions = {}
     ) {
         const response = await this.request(url, "PUT", data, headers, options);
         return response.data;
@@ -116,14 +121,14 @@ export default class ApiAdapter {
      * @param {string} url
      * @param data
      * @param headers
-     * @param options
+     * @param {ApiAdapterOptions} options
      * @returns {Promise<void>}
      */
     public async list(
         url: string,
         data: any = {},
         headers: any = {},
-        options: any = {}
+        options: ApiAdapterOptions = {}
     ) {
         const response = await this.request(
             url,
@@ -140,7 +145,7 @@ export default class ApiAdapter {
      * @param {string} method
      * @param data
      * @param headers
-     * @param options
+     * @param {ApiAdapterOptions} options
      * @returns {Promise<any>}
      */
     private async request(
@@ -148,15 +153,21 @@ export default class ApiAdapter {
         method = "GET",
         data: any = {},
         headers: any = {},
-        options: any = {
-            file: false
+        options: ApiAdapterOptions = {
+          file: false
         }
     ) {
-        // use session token or fallback to install taken if we have one
-        if (this.Session.sessionToken !== null) {
-            headers["X-Bunq-Client-Authentication"] = this.Session.sessionToken;
-        } else if (this.Session.installToken !== null) {
-            headers["X-Bunq-Client-Authentication"] = this.Session.installToken;
+        if (options.unauthenticated !== true) {
+            // use session token or fallback to install taken if we have one
+            if (this.Session.sessionToken !== null) {
+                headers[
+                    "X-Bunq-Client-Authentication"
+                ] = this.Session.sessionToken;
+            } else if (this.Session.installToken !== null) {
+                headers[
+                    "X-Bunq-Client-Authentication"
+                ] = this.Session.installToken;
+            }
         }
 
         // create a config for this request
@@ -202,12 +213,25 @@ export default class ApiAdapter {
         // Send the request to Bunq
         const response = await axios.request(requestConfig);
 
-        // attempt to verify the Bunq response
-        // const verifyResult = await this.verifyResponse(response);
-        //
-        // if (!verifyResult) {
-        //     throw new Error("We couldn't verify the received response");
-        // }
+        // don't do this stip if disabled
+        if (options.ignoreVerification !== true) {
+            // attempt to verify the bunq response
+            const verifyResult = await this.verifyResponse(response);
+
+            if (
+                // verification is invalid
+                !verifyResult &&
+                // not in a CI environment
+                !process.env.ENV_CI
+            ) {
+                // invalid response in a non-ci environment
+                throw {
+                    errorCode: ErrorCodes.INVALID_RESPONSE_RECEIVED,
+                    error: "We couldn't verify the received response",
+                    response: response
+                };
+            }
+        }
 
         return response;
     }
@@ -303,13 +327,14 @@ export default class ApiAdapter {
             return "";
         });
 
-        // manually include the user agent if none is set
-        if (!requestConfig.headers["User-Agent"]) {
-            headerStrings.push(
-                `User-Agent: ${typeof navigator !== "undefined"
-                    ? navigator.userAgent
-                    : this.DEFAULT_USER_AGENT}`
-            );
+        // manually include the user agent
+        if (typeof navigator === "undefined") {
+            const nodeUserAgent = `Node-${process.version}`;
+
+            requestConfig.headers["User-Agent"] = nodeUserAgent;
+            headerStrings.push(`User-Agent: ${nodeUserAgent}`);
+        } else {
+            headerStrings.push(`User-Agent: ${navigator.userAgent}`);
         }
 
         // sort alphabetically
@@ -386,8 +411,14 @@ export default class ApiAdapter {
             return this.Session.installToken === null;
         }
 
+        // fallback values for invalid response objects
+        if (!response.status) response.status = 200;
+        if (!response.request) response.request = {};
+        if (!response.headers) response.headers = {};
+
         // create a list of headers
         const headerStrings = [];
+
         Object.keys(response.headers).map(headerKey => {
             const headerParts = headerKey.split("-");
             // add uppercase back since axios makes every header key lowercase
@@ -418,6 +449,9 @@ export default class ApiAdapter {
             case "string":
                 data = response.request.response;
                 break;
+            case "undefined":
+                data = "";
+                break;
             default:
                 data = response.request.response.toString();
                 break;
@@ -426,15 +460,17 @@ export default class ApiAdapter {
         // generate the full template
         const template: string = `${response.status}\n${headers}\n\n${data}`;
 
-        // response verification is disabled
-        return true;
+        // only validate if a server signature is set
+        if (!response.headers["x-bunq-server-signature"]) {
+            return false;
+        }
 
         // verify the string and return results
-        // return await verifyString(
-        //     template,
-        //     this.Session.serverPublicKey,
-        //     response.headers["x-bunq-server-signature"]
-        // );
+        return await verifyString(
+            template,
+            this.Session.serverPublicKey,
+            response.headers["x-bunq-server-signature"]
+        );
     }
 
     /**

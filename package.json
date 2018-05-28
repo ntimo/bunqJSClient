@@ -1,22 +1,27 @@
 {
   "name": "@bunq-community/bunq-js-client",
-  "version": "0.15.2",
+  "version": "0.19.0",
   "license": "MIT",
   "scripts": {
-    "build": "cross-env NODE_ENV=production webpack --progress --colors",
-    "build:dev": "cross-env NODE_ENV=development webpack --debug --watch --progress --colors",
+    "build": "npm run build-webpack && npm run build-ts",
+    "build-webpack": "cross-env NODE_ENV=production webpack --progress --colors",
+    "build-ts": "tsc --listFiles",
     "test": "cross-env ENV_CI=true jest --verbose --config jest.config.js",
     "test:dev": "cross-env ENV_CI=true DEV_MODE=true jest --verbose --watch --config jest.config.js",
-    "publish-beta": "npm publish --tag=next"
+    "publish-beta": "npm publish --tag=next",
+    "preversion": "npm run build",
+    "add-contributer": "all-contributors add"
   },
   "main": "./index.js",
-  "module": "./src/BunqJSClient.ts",
+  "typings": "./src",
+  "types": "./src",
   "dependencies": {},
   "devDependencies": {
     "@types/jest": "^21.1.8",
     "@types/moxios": "^0.4.8",
     "@types/node": "^8.0.34",
-    "awaiting": "^2.0.1",
+    "all-contributors-cli": "^4.11.1",
+    "awaiting": "^3.0.0",
     "axios": "^0.16.2",
     "babel": "^6.23.0",
     "babel-cli": "^6.24.1",

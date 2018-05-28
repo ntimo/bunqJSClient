@@ -3,8 +3,9 @@ import AttachementContent from "./AttachementContent";
 import AttachmentPublic from "./AttachmentPublic";
 import BunqMeTabs from "./BunqMeTabs";
 import Card from "./Card";
-import CustomerStatementExport from "./CustomStatementExport";
-import CustomerStatementExportContent from "./CustomStatementExportContent";
+import CardCvc2 from "./CardCvc2";
+import CustomerStatementExport from "./CustomerStatementExport";
+import CustomerStatementExportContent from "./CustomerStatementExportContent";
 import DeviceRegistration from "./DeviceRegistration";
 import DraftPayment from "./DraftPayment";
 import Installation from "./Installation";
@@ -17,9 +18,15 @@ import RequestInquiry from "./RequestInquiry";
 import RequestInquiryBatch from "./RequestInquiryBatch";
 import RequestResponse from "./RequestResponse";
 import SandboxUser from "./SandboxUser";
+import Schedule from "./Schedule";
+import SchedulePayment from "./SchedulePayment";
+import SchedulePaymentBatch from "./SchedulePaymentBatch";
+import ShareInviteBankInquiry from "./ShareInviteBankInquiry";
+import ShareInviteBankResponse from "./ShareInviteBankResponse";
 import SessionServer from "./SessionServer";
 import User from "./User";
-import CardCvc2 from "./CardCvc2";
+import UserCompany from "./UserCompany";
+import UserPerson from "./UserPerson";
 
 export default (ApiAdapter: ApiAdapter) => {
     return {
@@ -45,6 +52,13 @@ export default (ApiAdapter: ApiAdapter) => {
         requestResponse: new RequestResponse(ApiAdapter),
         sessionServer: new SessionServer(ApiAdapter),
         sandboxUser: new SandboxUser(ApiAdapter),
-        user: new User(ApiAdapter)
+        schedule: new Schedule(ApiAdapter),
+        schedulePayment: new SchedulePayment(ApiAdapter),
+        schedulePaymentBatch: new SchedulePaymentBatch(ApiAdapter),
+        shareInviteBankInquiry: new ShareInviteBankInquiry(ApiAdapter),
+        shareInviteBankResponse: new ShareInviteBankResponse(ApiAdapter),
+        user: new User(ApiAdapter),
+        userCompany: new UserCompany(ApiAdapter),
+        userPerson: new UserPerson(ApiAdapter)
     };
 };
