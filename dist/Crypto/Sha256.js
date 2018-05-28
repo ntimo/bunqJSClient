@@ -35,10 +35,10 @@ exports.encryptString = async (data, publicKey) => {
  * @param privateKey
  * @returns {Promise<string>}
  */
-exports.signString = async (data, privateKey) => {
+exports.signString = async (data, privateKey, encoding = "utf8") => {
     // create a new message digest for our string
     const messageDigest = forgeSha256.create();
-    messageDigest.update(data, "utf8");
+    messageDigest.update(data, encoding);
     // sign it with a private key
     const signatureBytes = privateKey.sign(messageDigest);
     // encode to base 64 and return it

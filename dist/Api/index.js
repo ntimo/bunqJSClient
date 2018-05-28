@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const AttachementContent_1 = require("./AttachementContent");
+const AttachmentPublic_1 = require("./AttachmentPublic");
 const BunqMeTabs_1 = require("./BunqMeTabs");
 const Card_1 = require("./Card");
 const CardCvc2_1 = require("./CardCvc2");
@@ -30,6 +31,7 @@ const UserPerson_1 = require("./UserPerson");
 exports.default = (ApiAdapter) => {
     return {
         attachmentContent: new AttachementContent_1.default(ApiAdapter),
+        attachmentPublic: new AttachmentPublic_1.default(ApiAdapter),
         bunqMeTabs: new BunqMeTabs_1.default(ApiAdapter),
         card: new Card_1.default(ApiAdapter),
         cardCvc2: new CardCvc2_1.default(ApiAdapter),

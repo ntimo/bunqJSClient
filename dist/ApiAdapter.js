@@ -16,6 +16,7 @@ exports.DEFAULT_HEADERS = {
 };
 class ApiAdapter {
     constructor(Session, loggerInterface) {
+        this.DEFAULT_USER_AGENT = "bunq-js-client request";
         this.Session = Session;
         this.logger = loggerInterface;
         this.RequestLimitFactory = new RequestLimitFactory_1.default();
@@ -85,7 +86,9 @@ class ApiAdapter {
      * @param {ApiAdapterOptions} options
      * @returns {Promise<any>}
      */
-    async request(url, method = "GET", data = {}, headers = {}, options = {}) {
+    async request(url, method = "GET", data = {}, headers = {}, options = {
+            file: false
+        }) {
         if (options.unauthenticated !== true) {
             // use session token or fallback to install taken if we have one
             if (this.Session.sessionToken !== null) {
@@ -97,6 +100,10 @@ class ApiAdapter {
         }
         // create a config for this request
         let requestConfig = Object.assign({ url: `${url}`, method: method, data: data, headers: this.createHeaders(headers) }, options.axiosOptions);
+        // replace data with file object
+        if (options.file) {
+            requestConfig.data = options.file;
+        }
         if (options.isEncrypted === true) {
             requestConfig = await this.encryptRequest(requestConfig, options);
         }
@@ -106,6 +113,11 @@ class ApiAdapter {
             const signature = await this.signRequest(requestConfig, options);
             // add the generated signature
             requestConfig.headers["X-Bunq-Client-Signature"] = signature;
+        }
+        if (!requestConfig.headers["User-Agent"] &&
+            typeof navigator === "undefined") {
+            // server environment, set a custom header instead of using navigator
+            requestConfig.headers["User-Agent"] = this.DEFAULT_USER_AGENT;
         }
         if (requestConfig.url[0] === "/") {
             // complete relative urls
@@ -188,6 +200,7 @@ class ApiAdapter {
     async signRequest(requestConfig, options) {
         let url = requestConfig.url;
         const dataIsEncrypted = options.isEncrypted === true;
+        const requestHasFile = !!options.file;
         // Check if one or more param is set and add it to the url
         if (requestConfig.params &&
             Object.keys(requestConfig.params).length > 0) {
@@ -219,18 +232,46 @@ class ApiAdapter {
         const headers = headerStrings.join("\n");
         // serialize the data
         let data = "\n\n";
+        // these methods require data to be appended
         const appendDataWhitelist = ["POST", "PUT", "DELETE"];
+        // when encrypted we just append the raw data
         if (dataIsEncrypted === true) {
-            // when encrypted we pad the raw data
             data = `\n\n${requestConfig.data}`;
         }
         else if (appendDataWhitelist.some(item => item === requestConfig.method)) {
-            data = `\n\n${JSON.stringify(requestConfig.data)}`;
+            // serialize or raw data
+            if (requestConfig.headers["Content-Type"] === "application/json") {
+                data = `\n\n${JSON.stringify(requestConfig.data)}`;
+            }
+            else {
+                // we append the binary data manually
+            }
         }
         // generate the full template
         const template = `${methodUrl}${headers}${data}`;
-        // sign the template with our private key
-        return await Sha256_1.signString(template, this.Session.privateKey);
+        if (requestHasFile) {
+            // construct the final data we want to sign
+            const signData = await this.appendFileToString(template, options.file);
+            // sign the template + file with our private key
+            return await Sha256_1.signString(signData, this.Session.privateKey, "raw");
+        }
+        else {
+            // sign the template with our private key
+            return await Sha256_1.signString(template, this.Session.privateKey, "utf8");
+        }
+    }
+    /**
+     * Appends a file arraybuffer to a string
+     * @param {string} dataString
+     * @param {ArrayBuffer} dataFile
+     * @returns {Promise<any>}
+     */
+    async appendFileToString(dataString, dataFile) {
+        const dataBuffer1 = Buffer.from(dataString, "ascii");
+        const dataBuffer2 = Buffer.from(dataFile);
+        console.log(dataBuffer1);
+        console.log(dataBuffer2);
+        return Buffer.concat([dataBuffer1, dataBuffer2]);
     }
     /**
      * Verifies the response of a request

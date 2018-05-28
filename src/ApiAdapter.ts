@@ -179,6 +179,11 @@ export default class ApiAdapter {
             ...options.axiosOptions
         };
 
+        // replace data with file object
+        if (options.file) {
+            requestConfig.data = options.file;
+        }
+
         if (options.isEncrypted === true) {
             requestConfig = await this.encryptRequest(requestConfig, options);
         }
@@ -203,11 +208,6 @@ export default class ApiAdapter {
             // complete relative urls
             requestConfig.url = `${this.Session
                 .environmentUrl}${requestConfig.url}`;
-        }
-
-        // replace data with file object
-        if (options.file) {
-            requestConfig.data = options.file;
         }
 
         // Send the request to Bunq
