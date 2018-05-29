@@ -250,7 +250,6 @@ class ApiAdapter {
         }
         // the template we have to sign
         const template = `${methodUrl}${headers}${data}`;
-        console.log(template);
         // sign the template with our private key
         return await Sha256_1.signString(template, this.Session.privateKey, "raw");
     }
