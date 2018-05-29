@@ -15,7 +15,7 @@ export const ucfirst = (string: string): string => {
  * @param {ArrayBuffer} arrayBuffer
  * @returns {string}
  */
-export const arrayBufferToString = arrayBuffer => {
+export const arrayBufferToString = (arrayBuffer): string => {
     return String.fromCharCode.apply(null, new Uint8Array(arrayBuffer));
 };
 

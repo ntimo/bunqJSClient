@@ -4,7 +4,7 @@ type ApiAdapterOptions = {
     isEncrypted?: boolean;
     unauthenticated?: boolean;
     disableSigning?: boolean;
-    file?: Uint8Array | boolean;
+    file?: string | boolean;
 };
 
 export default ApiAdapterOptions;

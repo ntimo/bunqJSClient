@@ -154,7 +154,7 @@ export default class ApiAdapter {
         data: any = {},
         headers: any = {},
         options: ApiAdapterOptions = {
-          file: false
+            file: false
         }
     ) {
         if (options.unauthenticated !== true) {
@@ -355,49 +355,22 @@ export default class ApiAdapter {
         } else if (
             appendDataWhitelist.some(item => item === requestConfig.method)
         ) {
-            // serialize or raw data
-            if (requestConfig.headers["Content-Type"] === "application/json") {
-                data = `\n\n${JSON.stringify(requestConfig.data)}`;
+            if (requestHasFile) {
+                // add the raw binary data to the template
+                data = "\n\n" + requestConfig.data;
             } else {
-                // we append the binary data manually
+                // stringify the data as JSON and append
+                data = `\n\n${JSON.stringify(requestConfig.data)}`;
             }
         }
 
-        // generate the full template
-        const template: string = `${methodUrl}${headers}${data}`;
+        // the template we have to sign
+        const template = `${methodUrl}${headers}${data}`;
 
-        if (requestHasFile) {
-            // construct the final data we want to sign
-            const signData = await this.appendFileToString(
-                template,
-                options.file
-            );
+        console.log(template);
 
-            // sign the template + file with our private key
-            return await signString(signData, this.Session.privateKey, "raw");
-        } else {
-            // sign the template with our private key
-            return await signString(template, this.Session.privateKey, "utf8");
-        }
-    }
-
-    /**
-     * Appends a file arraybuffer to a string
-     * @param {string} dataString
-     * @param {ArrayBuffer} dataFile
-     * @returns {Promise<any>}
-     */
-    private async appendFileToString(
-        dataString: string,
-        dataFile: ArrayBuffer
-    ): Promise<Buffer> {
-        const dataBuffer1: Buffer = Buffer.from(dataString, "ascii");
-        const dataBuffer2: Buffer = Buffer.from(dataFile);
-
-        console.log(dataBuffer1);
-        console.log(dataBuffer2);
-
-        return Buffer.concat([dataBuffer1, dataBuffer2]);
+        // sign the template with our private key
+        return await signString(template, this.Session.privateKey, "raw");
     }
 
     /**

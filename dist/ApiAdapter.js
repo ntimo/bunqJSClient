@@ -239,39 +239,20 @@ class ApiAdapter {
             data = `\n\n${requestConfig.data}`;
         }
         else if (appendDataWhitelist.some(item => item === requestConfig.method)) {
-            // serialize or raw data
-            if (requestConfig.headers["Content-Type"] === "application/json") {
-                data = `\n\n${JSON.stringify(requestConfig.data)}`;
+            if (requestHasFile) {
+                // add the raw binary data to the template
+                data = "\n\n" + requestConfig.data;
             }
             else {
-                // we append the binary data manually
+                // stringify the data as JSON and append
+                data = `\n\n${JSON.stringify(requestConfig.data)}`;
             }
         }
-        // generate the full template
+        // the template we have to sign
         const template = `${methodUrl}${headers}${data}`;
-        if (requestHasFile) {
-            // construct the final data we want to sign
-            const signData = await this.appendFileToString(template, options.file);
-            // sign the template + file with our private key
-            return await Sha256_1.signString(signData, this.Session.privateKey, "raw");
-        }
-        else {
-            // sign the template with our private key
-            return await Sha256_1.signString(template, this.Session.privateKey, "utf8");
-        }
-    }
-    /**
-     * Appends a file arraybuffer to a string
-     * @param {string} dataString
-     * @param {ArrayBuffer} dataFile
-     * @returns {Promise<any>}
-     */
-    async appendFileToString(dataString, dataFile) {
-        const dataBuffer1 = Buffer.from(dataString, "ascii");
-        const dataBuffer2 = Buffer.from(dataFile);
-        console.log(dataBuffer1);
-        console.log(dataBuffer2);
-        return Buffer.concat([dataBuffer1, dataBuffer2]);
+        console.log(template);
+        // sign the template with our private key
+        return await Sha256_1.signString(template, this.Session.privateKey, "raw");
     }
     /**
      * Verifies the response of a request

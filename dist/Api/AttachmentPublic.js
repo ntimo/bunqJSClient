@@ -12,18 +12,14 @@ class AttachmentPublic {
     async post(file, options = {}) {
         const limiter = this.ApiAdapter.RequestLimitFactory.create("/attachment-public", "POST");
         const fileReaderResults = await FileReaderHelper_1.default(file);
-        console.log(fileReaderResults);
         // do the actual call
-        const response = await limiter.run(async () => this.ApiAdapter.post(`/v1/attachment-public`, 
-        // `http://localhost:3001`,
-        fileReaderResults.binaryString, {
+        const response = await limiter.run(async () => this.ApiAdapter.post(`/v1/attachment-public`, fileReaderResults, {
             "Content-Type": file.type,
             "X-Bunq-Attachment-Description": "Default description"
         }, {
-            file: fileReaderResults.arrayBuffer
+            file: fileReaderResults
         }));
-        throw new Error(response);
-        // return response.Response[0].Uuid.uuid;
+        return response;
     }
 }
 exports.default = AttachmentPublic;

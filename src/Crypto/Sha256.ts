@@ -41,7 +41,7 @@ export const encryptString = async (data: string, publicKey: any) => {
 export const signString = async (
     data: string | Buffer,
     privateKey: any,
-    encoding: string = "utf8"
+    encoding: string = "raw"
 ) => {
     // create a new message digest for our string
     const messageDigest = forgeSha256.create();

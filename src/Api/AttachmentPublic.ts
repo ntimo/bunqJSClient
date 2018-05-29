@@ -1,9 +1,7 @@
 import ApiAdapter from "../ApiAdapter";
 import Session from "../Session";
 import ApiEndpointInterface from "../Interfaces/ApiEndpointInterface";
-import FileReaderHelper, {
-    FileReaderResult
-} from "../Helpers/FileReaderHelper";
+import FileReaderHelper from "../Helpers/FileReaderHelper";
 
 export default class AttachmentPublic implements ApiEndpointInterface {
     ApiAdapter: ApiAdapter;
@@ -23,29 +21,23 @@ export default class AttachmentPublic implements ApiEndpointInterface {
             "POST"
         );
 
-        const fileReaderResults: FileReaderResult = await FileReaderHelper(
-            file
-        );
-
-        console.log(fileReaderResults);
+        const fileReaderResults: string = await FileReaderHelper(file);
 
         // do the actual call
         const response = await limiter.run(async () =>
             this.ApiAdapter.post(
                 `/v1/attachment-public`,
-                // `http://localhost:3001`,
-                fileReaderResults.binaryString,
+                fileReaderResults,
                 {
                     "Content-Type": file.type,
                     "X-Bunq-Attachment-Description": "Default description"
                 },
                 {
-                    file: fileReaderResults.arrayBuffer
+                    file: fileReaderResults
                 }
             )
         );
 
-        throw new Error(response);
-        // return response.Response[0].Uuid.uuid;
+        return response;
     }
 }

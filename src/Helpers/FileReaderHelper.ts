@@ -1,25 +1,22 @@
-export type FileReaderResult = {
-    binaryString: string;
-    arrayBuffer: Uint8Array;
-};
+import { arrayBufferToString } from "./Utils";
 
-export default async (file: File): Promise<FileReaderResult> => {
+export default async (file: File): Promise<string> => {
     const fileReader = new FileReader();
 
     // start loading the file as binary
     fileReader.readAsArrayBuffer(file);
 
     // wrap the filereader callback in a promise
-    return new Promise<FileReaderResult>(resolve => {
+    return new Promise<string>(resolve => {
         // resolve the output onload
         fileReader.onload = () => {
+            // turn regular arraybuffer into uint8 array buffer
             const arrayBuffer: Uint8Array = new Uint8Array(fileReader.result);
-            const binaryString = String.fromCharCode.apply(null, arrayBuffer);
 
-            resolve({
-                binaryString: binaryString,
-                arrayBuffer: arrayBuffer
-            });
+            // Turn arraybuffer into binary string
+            const text: string = arrayBufferToString(arrayBuffer);
+
+            resolve(text);
         };
     });
 };

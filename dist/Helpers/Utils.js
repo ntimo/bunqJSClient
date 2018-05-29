@@ -13,7 +13,7 @@ exports.ucfirst = (string) => {
  * @param {ArrayBuffer} arrayBuffer
  * @returns {string}
  */
-exports.arrayBufferToString = arrayBuffer => {
+exports.arrayBufferToString = (arrayBuffer) => {
     return String.fromCharCode.apply(null, new Uint8Array(arrayBuffer));
 };
 /**
