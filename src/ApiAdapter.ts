@@ -367,8 +367,6 @@ export default class ApiAdapter {
         // the template we have to sign
         const template = `${methodUrl}${headers}${data}`;
 
-        console.log(template);
-
         // sign the template with our private key
         return await signString(template, this.Session.privateKey, "raw");
     }
