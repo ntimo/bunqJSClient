@@ -27,7 +27,7 @@ export const encryptString = async (data: string, publicKey: any) => {
     messageDigest.update(data, "utf8");
 
     // sign it with a private key
-    const signatureBytes = publicKey.encrypt(messageDigest);
+    const signatureBytes = publicKey.encrypt(messageDigest.digest().getBytes());
     // encode to base 64 and return it
     return forgeUtil.encode64(signatureBytes);
 };
@@ -70,7 +70,10 @@ export const verifyString = async (
         const rawSignature = forgeUtil.decode64(signature);
 
         // verify the signature with the public key
-        return publicKey.verify(messageDigest.digest().getBytes(), rawSignature);
+        return publicKey.verify(
+            messageDigest.digest().getBytes(),
+            rawSignature
+        );
     } catch (ex) {
         Logger.debug(ex);
         return false;

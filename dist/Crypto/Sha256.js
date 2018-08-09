@@ -25,7 +25,7 @@ exports.encryptString = async (data, publicKey) => {
     const messageDigest = forgeSha256.create();
     messageDigest.update(data, "utf8");
     // sign it with a private key
-    const signatureBytes = publicKey.encrypt(messageDigest);
+    const signatureBytes = publicKey.encrypt(messageDigest.digest().getBytes());
     // encode to base 64 and return it
     return forgeUtil.encode64(signatureBytes);
 };

@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const axios_1 = require("axios");
 const Url = require("url");
+const forge = require("node-forge");
 const Sha256_1 = require("./Crypto/Sha256");
 const Utils_1 = require("./Helpers/Utils");
 const ErrorCodes_1 = require("./Helpers/ErrorCodes");
@@ -163,45 +164,30 @@ class ApiAdapter {
      * @returns {Promise<AxiosRequestConfig>}
      */
     async encryptRequest(requestConfig, options) {
+        const body = JSON.stringify(requestConfig.data);
+        const iv = forge.random.getBytesSync(16);
+        const key = forge.random.getBytesSync(32);
+        const encryptedAesKey = await Sha256_1.encryptString(key, this.Session.serverPublicKey);
+        // create a new aes-cbc cipher with our key
+        const cipher = forge.cipher.createCipher("AES-CBC", key);
+        // turn our string into a buffer
+        const buffer = forge.util.createBuffer(body, "utf8");
+        cipher.start({ iv: iv });
+        cipher.update(buffer);
+        cipher.finish();
+        const encryptedBody = cipher.output.getBytes();
+        // create an hmac buffer with the body and key
+        const hmac = forge.hmac.create();
+        const keyBuffer = forge.util.createBuffer(key, "raw");
+        hmac.start("sha1", keyBuffer);
+        hmac.update(iv + body);
+        const hmacBuffer = hmac.digest().getBytes();
+        const base64Hmac = forge.util.encode64(hmacBuffer);
+        const base64Iv = forge.util.encode64(iv);
+        // update the requestconfig
+        requestConfig.data = encryptedBody;
+        requestConfig.headers = Object.assign({}, requestConfig.headers, { "X-Bunq-Client-Encryption-Hmac": base64Hmac, "X-Bunq-Client-Encryption-Key": encryptedAesKey, "X-Bunq-Client-Encryption-Iv": base64Iv });
         return requestConfig;
-        // TODO test and implement actual encryption
-        // const body = JSON.stringify(requestConfig.data);
-        // const iv = forge.random.getBytesSync(16);
-        // const key = forge.random.getBytesSync(32);
-        // const encryptedAesKey = await encryptStringRsa(
-        //     key,
-        //     this.Session.serverPublicKey
-        // );
-        //
-        // // create a new aes-cbc cipher with our key
-        // const cipher = forge.cipher.createCipher("AES-CBC", key);
-        // // turn our string into a buffer
-        // const buffer = forge.util.createBuffer(body, "utf8");
-        // cipher.start({ iv: iv });
-        // cipher.update(buffer);
-        // cipher.finish();
-        // const encryptedBody = cipher.output.getBytes();
-        //
-        // // create an hmac buffer with the body and key
-        // const hmac = forge.hmac.create();
-        // const keyBuffer = forge.util.createBuffer(key, "raw");
-        // hmac.start("sha1", keyBuffer);
-        // hmac.update(iv + body);
-        // const hmacBuffer = hmac.digest();
-        //
-        // const base64Hmac = forge.util.encode64(hmacBuffer);
-        // const base64Iv = forge.util.encode64(iv);
-        //
-        // // update the requestconfig
-        // requestConfig.data = encryptedBody;
-        // requestConfig.headers = {
-        //     ...requestConfig.headers,
-        //     "X-Bunq-Client-Encryption-Hmac": base64Hmac,
-        //     "X-Bunq-Client-Encryption-Key": encryptedAesKey,
-        //     "X-Bunq-Client-Encryption-Iv": base64Iv
-        // };
-        //
-        // return requestConfig;
     }
     /**
      * Signs a request using our privatekey
